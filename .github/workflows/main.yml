@@ -1,0 +1,42 @@
+name: Build Android APK
+on:
+  workflow_dispatch:
+    inputs:
+      flutter_version:
+        description: "Flutter SDK version or channel"
+        required: false
+        default: "stable"
+        type: string
+  push:
+    branches: [ main, master ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter_version || 'stable' }}
+          cache: true
+          
+      - name: Ensure Android platform files
+        run: flutter create --platforms=android --org com.smali .
+        
+      - name: Remove duplicate generated Gradle Kotlin files
+        run: |
+          rm -f android/settings.gradle.kts android/build.gradle.kts android/app/build.gradle.kts
+          sed -i 's/version "2.1.0" apply false/version "2.2.20" apply false/' android/settings.gradle
+          
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build APK
+        run: flutter build apk --release
+        
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: azkar-muslim-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
